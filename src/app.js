@@ -102,6 +102,7 @@ async function loadApplications() {
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
+  if (form.getAttribute('aria-busy') === 'true') return;
   const data = new FormData(form);
   const values = { name: String(data.get('name') || '').trim(), topic: String(data.get('topic') || ''), comment: String(data.get('comment') || '') };
   if (!permitted('submit', { topic: values.topic, supportCode: String(data.get('supportCode') || '') })) return;
