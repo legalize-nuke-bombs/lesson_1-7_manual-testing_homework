@@ -29,7 +29,7 @@ function validate(values) {
 }
 
 function renderComment(element, text) {
-  element.innerHTML = text || 'Без комментария';
+  element.textContent = text || 'Без комментария';
 }
 
 function renderSelection() {
@@ -46,7 +46,7 @@ function renderApplications() {
   const visible = applications.filter(item => filter.value === 'all' || item.topic === filter.value);
   const focusedId = document.activeElement?.closest('.application-card')?.dataset.id;
   list.replaceChildren();
-  document.querySelector('#application-count').textContent = String(applications.length);
+  document.querySelector('#application-count').textContent = String(visible.length);
   document.querySelector('#empty-state').hidden = visible.length > 0;
 
   for (const application of visible) {
@@ -76,8 +76,7 @@ function renderApplications() {
     arrow.setAttribute('aria-hidden', 'true');
     body.append(name, topic, comment);
     card.append(index, body, arrow);
-    card.addEventListener('click', event => {
-      if (event.target !== card) return;
+    card.addEventListener('click', () => {
       selectedId = application.id;
       renderApplications();
     });
@@ -103,8 +102,9 @@ async function loadApplications() {
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
+  if (form.getAttribute('aria-busy') === 'true') return;
   const data = new FormData(form);
-  const values = { name: String(data.get('name') || ''), topic: String(data.get('topic') || ''), comment: String(data.get('comment') || '') };
+  const values = { name: String(data.get('name') || '').trim(), topic: String(data.get('topic') || ''), comment: String(data.get('comment') || '') };
   if (!permitted('submit', { topic: values.topic, supportCode: String(data.get('supportCode') || '') })) return;
   const error = validate(values);
   if (error) { setFormStatus(error, 'error'); return; }
@@ -112,9 +112,10 @@ form.addEventListener('submit', async event => {
   setFormStatus('Отправляем заявку…', 'pending');
   form.setAttribute('aria-busy', 'true');
   try {
-    const response = await createApplication({ ...values, name: values.name.trim() });
+    const response = await createApplication(values);
     const result = await response.json();
     if (currentRevision !== revision) return;
+    if (!response.ok) throw new Error(result.error?.message);
     setFormStatus('Заявка сохранена. Спасибо!', 'success');
     form.reset();
     await loadApplications();
@@ -137,6 +138,8 @@ document.querySelector('#refresh-button').addEventListener('click', () => {
 
 document.querySelector('#reset-interface').addEventListener('click', () => {
   form.reset();
+  selectedId = null;
+  filter.value = 'all';
   setFormStatus('Интерфейс сброшен.');
   renderApplications();
 });
